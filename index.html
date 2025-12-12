@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ustaz.ai - Мұғалім ассистенті</title>
+    <!-- n8n Chat Bot -->
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="n8n-chat"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- n8n Chat Bot Script -->
+    <script type="module">
+      import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+      
+      createChat({
+        webhookUrl: 'https://nurik02.app.n8n.cloud/webhook/755b1cf7-ecca-4fc1-988f-decab37f24c2/chat',
+        webhookConfig: {
+          method: 'POST',
+          headers: {}
+        },
+        target: '#n8n-chat',
+        mode: 'window',
+        chatInputKey: 'chatInput',
+        chatSessionKey: 'sessionId',
+        loadPreviousSession: true,
+        metadata: {},
+        showWelcomeScreen: false,
+        defaultLanguage: 'en',
+        initialMessages: [
+          'Сәлем! 👋',
+          'Мен Ustaz ai дың вертуалды көмекшісімін'
+        ],
+        i18n: {
+          en: {
+            title: 'Сәлем! 👋',
+            subtitle: "Сөйлесуді бастаңыз. Біз сізге көмектесу үшін 24/7 осындамыз.",
+            footer: '',
+            getStarted: 'New Conversation',
+            inputPlaceholder: 'Type your question..',
+          },
+        },
+        enableStreaming: false,
+      });
+    </script>
+  </body>
+</html>
+
