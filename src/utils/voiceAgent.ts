@@ -98,8 +98,8 @@ export class VoiceAgent {
       // Устанавливаем новый обработчик, который создаст blob
       this.mediaRecorder!.onstop = () => {
         // Вызываем оригинальный обработчик если он был
-        if (originalOnStop) {
-          originalOnStop.call(this.mediaRecorder)
+        if (originalOnStop && this.mediaRecorder) {
+          originalOnStop.call(this.mediaRecorder, new Event('stop'))
         }
 
         // Останавливаем поток
@@ -124,7 +124,7 @@ export class VoiceAgent {
 
       // Останавливаем recorder
       try {
-        if (this.mediaRecorder.state === 'recording' || this.mediaRecorder.state === 'paused') {
+        if (this.mediaRecorder && (this.mediaRecorder.state === 'recording' || this.mediaRecorder.state === 'paused')) {
           // Запрашиваем последний чанк данных
           this.mediaRecorder.requestData()
           
@@ -221,7 +221,7 @@ export class VoiceAgent {
           reader.readAsDataURL(blob)
         })
       } else {
-        const text = await response.text()
+        await response.text() // Просто читаем для очистки
         throw new Error(`Неподдерживаемый формат ответа. Получен: ${contentType || 'unknown'}`)
       }
 

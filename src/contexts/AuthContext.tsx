@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const data = await apiClient.login(email, password)
+      await apiClient.login(email, password)
       // Сохраняем базовую информацию о пользователе
       const userData: User = {
         email,

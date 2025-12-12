@@ -572,7 +572,7 @@ export const documentTemplates: DocumentTemplate[] = [
             </tr>
           </thead>
           <tbody>
-            ${(data.students || '').split('\n').filter(s => s.trim()).map((student, index) => `
+            ${(data.students || '').split('\n').filter((s: string) => s.trim()).map((student: string, index: number) => `
               <tr>
                 <td style="border: 1px solid #000; padding: 10px; text-align: center;">${index + 1}</td>
                 <td style="border: 1px solid #000; padding: 10px;">${student.trim()}</td>
