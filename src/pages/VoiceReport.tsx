@@ -28,8 +28,10 @@ function VoiceReport() {
   const [statusText, setStatusText] = useState('Нажмите на кнопку, чтобы начать')
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [pdfDirectUrl, setPdfDirectUrl] = useState<string | null>(null) // Прямая ссылка на PDF (для скачивания)
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pdfLoadError, setPdfLoadError] = useState(false) // Ошибка загрузки PDF из-за CORS
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioStreamRef = useRef<MediaStream | null>(null)
@@ -251,14 +253,39 @@ function VoiceReport() {
       // Если есть pdf_url - загружаем и показываем PDF (приоритет, как в app.js)
       if (data.pdf_url) {
         console.log('📄 Генерация PDF из URL:', data.pdf_url)
+        setPdfDirectUrl(data.pdf_url) // Сохраняем прямую ссылку
         try {
           await generatePDFFromUrl(data.pdf_url)
           setState('listening')
           setStatusText('PDF готов. Можете задать следующий вопрос.')
-        } catch (pdfError) {
+        } catch (pdfError: any) {
           console.error('Ошибка генерации PDF из URL:', pdfError)
-          // Если не удалось загрузить PDF, показываем URL как ссылку
-          setStatusText('PDF URL получен, но не удалось загрузить. Попробуйте открыть ссылку.')
+          // Если ошибка CORS, показываем кнопку для скачивания
+          if (pdfError.message?.includes('CORS') || pdfError.message?.includes('Failed to fetch')) {
+            setPdfLoadError(true)
+            setState('listening')
+            setStatusText('PDF готов. Используйте кнопку для скачивания или открытия.')
+            
+            // Сохраняем прямую ссылку в localStorage даже если не удалось загрузить
+            const docId = `ai-agent-${Date.now()}`
+            const pdfDoc = {
+              id: docId,
+              type: 'AI Agent Жауабы',
+              text: `PDF URL: ${data.pdf_url}`,
+              createdAt: new Date().toISOString(),
+              blobUrl: data.pdf_url, // Сохраняем прямую ссылку
+              history: [{
+                id: Date.now().toString(),
+                action: 'created' as const,
+                timestamp: new Date().toISOString(),
+                details: `PDF URL получен (CORS ограничение): ${data.pdf_url}`,
+              }],
+            }
+            storage.savePDF(pdfDoc)
+            console.log('✅ PDF URL сохранен в localStorage с ID:', docId)
+          } else {
+            setStatusText('PDF URL получен, но не удалось загрузить. Попробуйте открыть ссылку.')
+          }
         }
       } 
       // Если есть текст - генерируем PDF из текста
@@ -487,7 +514,7 @@ function VoiceReport() {
       </button>
 
       {/* PDF Preview */}
-      {pdfUrl && (
+      {(pdfUrl || pdfDirectUrl) && (
         <div className="w-full max-w-5xl mb-8 animate-fade-in bg-white rounded-xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -508,7 +535,30 @@ function VoiceReport() {
                 <FiFolder />
                 Барлық құжаттар
               </button>
-              {pdfBlob && (
+              {pdfDirectUrl && (
+                <>
+                  <a
+                    href={pdfDirectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                    title="Жаңа вкладкада ашу"
+                  >
+                    <FiEye />
+                    Ашу
+                  </a>
+                  <a
+                    href={pdfDirectUrl}
+                    download
+                    className="flex items-center gap-2 bg-primary hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                    title="PDF жүктеу"
+                  >
+                    <FiDownload />
+                    Жүктеу
+                  </a>
+                </>
+              )}
+              {pdfBlob && pdfUrl && (
                 <>
                   <a
                     href={pdfUrl}
@@ -532,17 +582,52 @@ function VoiceReport() {
             </div>
           </div>
           
-          <div className="border border-gray-300 rounded-lg bg-gray-50 overflow-hidden shadow-inner">
-            <iframe
-              src={pdfUrl}
-              className="w-full h-[700px] border-0"
-              title="PDF Preview"
-              onError={() => {
-                console.error('Ошибка загрузки PDF в iframe')
-                setError('Ошибка отображения PDF. Попробуйте открыть в новой вкладке.')
-              }}
-            />
-          </div>
+          {pdfLoadError ? (
+            <div className="border border-gray-300 rounded-lg bg-gray-50 p-8 text-center">
+              <div className="mb-4">
+                <svg className="w-16 h-16 text-blue-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-2">PDF дайын</h4>
+              <p className="text-gray-600 mb-4">
+                PDF файл дайын, бірақ браузерде көрсету мүмкін емес (CORS қатесі).
+                <br />
+                Төмендегі батырмаларды пайдаланып PDF-ті ашыңыз немесе жүктеңіз.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <a
+                  href={pdfDirectUrl!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition"
+                >
+                  <FiEye />
+                  PDF ашу
+                </a>
+                <a
+                  href={pdfDirectUrl!}
+                  download
+                  className="flex items-center gap-2 bg-primary hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition"
+                >
+                  <FiDownload />
+                  PDF жүктеу
+                </a>
+              </div>
+            </div>
+          ) : pdfUrl ? (
+            <div className="border border-gray-300 rounded-lg bg-gray-50 overflow-hidden shadow-inner">
+              <iframe
+                src={pdfUrl}
+                className="w-full h-[700px] border-0"
+                title="PDF Preview"
+                onError={() => {
+                  console.error('Ошибка загрузки PDF в iframe')
+                  setPdfLoadError(true)
+                }}
+              />
+            </div>
+          ) : null}
           
           <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
